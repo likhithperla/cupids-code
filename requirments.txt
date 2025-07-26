@@ -1,5 +1,0 @@
-flask
-flask-cors
-google-generativeai
-google-cloud-firestore
-gunicorn
