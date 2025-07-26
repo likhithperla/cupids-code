@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cupid's Code - AI Dating Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f2f2;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .btn-primary {
+            background-color: #ff4d6d;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #ff3355;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #ff4d6d;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-gray-900">Cupid's Code</h1>
+            <p class="text-lg md:text-xl text-gray-600 mt-2">Your AI-powered wingman for online dating.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Left Column: Conversation Starter -->
+            <div class="lg:col-span-2 space-y-8">
+                <div id="opener-generator" class="glass-card rounded-2xl p-6 shadow-lg">
+                    <div class="flex items-center mb-4">
+                        <i data-lucide="message-circle-heart" class="w-10 h-10 text-pink-500 mr-4"></i>
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800">Conversation Starter</h2>
+                            <p class="text-gray-600">Upload a screenshot of your match's profile to get the perfect opening line.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                        <!-- Input Section -->
+                        <div>
+                            <input type="file" id="profile-upload" class="hidden" accept="image/*">
+                            <label for="profile-upload" class="w-full cursor-pointer bg-white border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-pink-400 transition">
+                                <i data-lucide="upload-cloud" class="w-12 h-12 mx-auto text-gray-400"></i>
+                                <span class="mt-2 block text-sm font-medium text-gray-600">Upload Match's Profile</span>
+                            </label>
+                            <img id="image-preview" src="" class="hidden rounded-lg mt-4 max-h-60 mx-auto" alt="Profile Preview"/>
+                        </div>
+                        
+                        <!-- Controls Section -->
+                        <div class="space-y-4">
+                            <div>
+                                <label for="reply-tone" class="block text-sm font-medium text-gray-700 mb-1">Choose a tone:</label>
+                                <select id="reply-tone" class="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-pink-400">
+                                    <option>Witty</option>
+                                    <option>Charming</option>
+                                    <option>Playful</option>
+                                    <option>Direct</option>
+                                    <option>Friendly</option>
+                                    <option>Humorous</option>
+                                    <option>Inquisitive</option>
+                                </select>
+                            </div>
+                            <button id="generate-opener-btn" class="btn-primary w-full py-3 rounded-lg font-semibold disabled:bg-gray-400" disabled>
+                                Generate Openers
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Output Section -->
+                    <div id="opener-loader" class="hidden text-center p-6 mt-4">
+                        <div class="loader mx-auto"></div>
+                        <p class="mt-4 text-gray-600">Reading their profile and crafting openers...</p>
+                    </div>
+                    <div id="opener-options" class="mt-6 hidden space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- Right Column: AI Chat -->
+            <div class="lg:col-span-1 space-y-8">
+                <div id="ai-chat" class="glass-card rounded-2xl p-6 shadow-lg flex flex-col h-[70vh] max-h-[800px]">
+                    <div class="flex items-center mb-4">
+                        <i data-lucide="sparkles" class="w-8 h-8 text-purple-500 mr-3"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Dating Coach</h2>
+                    </div>
+                    <div id="chat-history" class="flex-grow overflow-y-auto pr-2 space-y-4 mb-4">
+                        <div class="flex justify-start"><div class="bg-purple-100 text-gray-800 p-3 rounded-lg max-w-xs"><p>Hey! Ask me anything about dating, or we can practice a conversation.</p></div></div>
+                    </div>
+                    <div id="chat-loader" class="hidden text-center p-4"><div class="loader mx-auto" style="border-top-color: #8b5cf6;"></div></div>
+                    <div class="flex mt-auto">
+                        <input type="text" id="chat-input" class="w-full p-3 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-purple-400" placeholder="Ask for advice...">
+                        <button id="chat-send-btn" class="p-3 rounded-r-lg bg-purple-500 text-white hover:bg-purple-600 transition"><i data-lucide="send" class="w-6 h-6"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // --- DOM Elements ---
+        const profileUpload = document.getElementById('profile-upload'), imagePreview = document.getElementById('image-preview'), generateOpenerBtn = document.getElementById('generate-opener-btn'), openerLoader = document.getElementById('opener-loader'), openerOptions = document.getElementById('opener-options'), replyTone = document.getElementById('reply-tone');
+        const chatHistory = document.getElementById('chat-history'), chatInput = document.getElementById('chat-input'), chatSendBtn = document.getElementById('chat-send-btn'), chatLoader = document.getElementById('chat-loader');
+
+        let profileImageBase64 = null, conversation = [{role: 'model', parts: [{ text: "Hey! I'm Cupid's Code, your AI dating coach. Ask me anything about dating, or we can practice a conversation." }]}];
+        
+        const BACKEND_URL = 'http://127.0.0.1:8080';
+
+        // --- Helper function for API calls ---
+        async function fetchApi(endpoint, body) {
+            try {
+                const response = await fetch(`${BACKEND_URL}${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'An unknown error occurred.' }));
+                    throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                 console.error(`Error calling ${endpoint}:`, error);
+                 throw new Error(error.message.includes('Failed to fetch') ? "Could not connect to the backend. Is the server running?" : `An error occurred: ${error.message}`);
+            }
+        }
+
+        // --- Conversation Starter Logic ---
+        profileUpload.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    profileImageBase64 = e.target.result.split(',')[1];
+                    imagePreview.src = e.target.result;
+                    imagePreview.classList.remove('hidden');
+                    generateOpenerBtn.disabled = false;
+                    openerOptions.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        generateOpenerBtn.addEventListener('click', async () => {
+            if (!profileImageBase64) return;
+            openerLoader.classList.remove('hidden');
+            generateOpenerBtn.disabled = true;
+            openerOptions.classList.add('hidden');
+            openerOptions.innerHTML = '';
+            try {
+                const data = await fetchApi('/generate_opener', { image_data: profileImageBase64, tone: replyTone.value });
+                displayOpenerOptions(data.openers);
+            } catch (error) {
+                openerOptions.innerHTML = `<p class="text-red-500 p-3">${error.message}</p>`;
+            } finally {
+                openerLoader.classList.add('hidden');
+                generateOpenerBtn.disabled = false;
+                openerOptions.classList.remove('hidden');
+            }
+        });
+
+        function displayOpenerOptions(openers) {
+            if (!openers || openers.length === 0) {
+                openerOptions.innerHTML = `<p class="text-gray-600 p-3">The AI couldn't generate openers. Maybe try a different profile screenshot?</p>`;
+                return;
+            }
+            openers.forEach(reply => {
+                const replyEl = document.createElement('div');
+                replyEl.className = 'bg-white p-3 rounded-lg flex justify-between items-center border border-gray-200';
+                replyEl.innerHTML = `<p class="text-gray-700 flex-grow mr-2">${reply}</p><button class="copy-btn p-2 rounded-md bg-gray-100 hover:bg-gray-200 transition"><i data-lucide="copy" class="w-5 h-5 text-gray-600"></i></button>`;
+                openerOptions.appendChild(replyEl);
+            });
+            lucide.createIcons();
+            addCopyListeners();
+        }
+
+        function addCopyListeners() {
+            document.querySelectorAll('.copy-btn').forEach(button => {
+                button.addEventListener('click', e => {
+                    const text = e.currentTarget.previousElementSibling.textContent;
+                    navigator.clipboard.writeText(text).then(() => {
+                        e.currentTarget.innerHTML = `<i data-lucide="check" class="w-5 h-5 text-green-500"></i>`;
+                        lucide.createIcons();
+                        setTimeout(() => {
+                            e.currentTarget.innerHTML = `<i data-lucide="copy" class="w-5 h-5 text-gray-600"></i>`;
+                            lucide.createIcons();
+                        }, 2000);
+                    });
+                });
+            });
+        }
+
+        // --- AI Chat Logic ---
+        const handleChatSend = async () => {
+            const messageText = chatInput.value.trim();
+            if (!messageText) return;
+            appendChatMessage(messageText, 'user');
+            conversation.push({ role: 'user', parts: [{ text: messageText }] });
+            chatInput.value = '';
+            chatLoader.classList.remove('hidden');
+            try {
+                const data = await fetchApi('/chat', { history: conversation });
+                appendChatMessage(data.reply, 'model');
+                conversation.push({ role: 'model', parts: [{ text: data.reply }] });
+            } catch (error) {
+                appendChatMessage(error.message, 'model', true);
+            } finally {
+                chatLoader.classList.add('hidden');
+            }
+        };
+
+        chatSendBtn.addEventListener('click', handleChatSend);
+        chatInput.addEventListener('keypress', e => e.key === 'Enter' && handleChatSend());
+
+        function appendChatMessage(text, role, isError = false) {
+            const msgWrapper = document.createElement('div');
+            msgWrapper.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
+            const msgBubble = document.createElement('div');
+            msgBubble.className = `p-3 rounded-lg max-w-xs ${role === 'user' ? 'bg-blue-500 text-white' : (isError ? 'bg-red-100 text-red-800' : 'bg-purple-100 text-gray-800')}`;
+            msgBubble.innerHTML = `<p>${text.replace(/\n/g, '<br>')}</p>`;
+            msgWrapper.appendChild(msgBubble);
+            chatHistory.appendChild(msgWrapper);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+    </script>
+</body>
+</html>
