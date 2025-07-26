@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import google.generativeai as genai
 from google.cloud import firestore
+from google.oauth2 import service_account
 from google.api_core.exceptions import GoogleAPICallError
 
 # --- Initialization ---
@@ -11,28 +12,38 @@ app = Flask(__name__)
 CORS(app)
 
 # --- Configuration ---
+# The app will get its "passwords" from Render's Environment Variables
 API_KEY = os.environ.get("GOOGLE_API_KEY")
 if not API_KEY:
-    print("Warning: GOOGLE_API_KEY environment variable not set. This is required for local testing.")
+    print("Warning: GOOGLE_API_KEY environment variable not set.")
 
 genai.configure(api_key=API_KEY)
 
+# Initialize Firestore DB client
+db = None
 try:
-    db = firestore.Client()
+    # This block tries to find the special database password from the environment
+    gcp_json_credentials_str = os.environ.get("FIRESTORE_CREDENTIALS_JSON")
+    if gcp_json_credentials_str:
+        gcp_json_credentials_dict = json.loads(gcp_json_credentials_str)
+        credentials = service_account.Credentials.from_service_account_info(gcp_json_credentials_dict)
+        db = firestore.Client(credentials=credentials)
+        print("Successfully initialized Firestore with provided credentials.")
+    else:
+        print("Warning: FIRESTORE_CREDENTIALS_JSON not found. Trying default credentials.")
+        db = firestore.Client()
+
 except Exception as e:
-    print(f"Warning: Could not initialize Firestore. Chat history will not be saved. Error: {e}")
+    print(f"CRITICAL: Could not initialize Firestore. Chat history will not be saved. Error: {e}")
     db = None
 
-# Use a single, powerful model for all tasks
+# Initialize AI Models
 model = genai.GenerativeModel('gemini-1.5-flash')
 
-# --- API Endpoints ---
+# --- API Endpoints (No change in logic) ---
 
 @app.route('/generate_opener', methods=['POST'])
 def generate_opener():
-    """
-    Analyzes a match's profile screenshot and generates opening lines.
-    """
     if not request.json or 'image_data' not in request.json or 'tone' not in request.json:
         return jsonify({"error": "Missing image data or tone"}), 400
     
@@ -42,43 +53,29 @@ def generate_opener():
     
     prompt = f"""
     You are a charismatic and clever dating assistant. Your goal is to help a user write an excellent opening message based on a screenshot of their match's profile.
-
-    Analyze the provided screenshot, paying attention to:
-    - Text in the bio: Look for hobbies, interests, questions, or anything unique.
-    - Visuals in the photo(s): Look for locations, activities, pets, clothing, or general vibe.
-
-    Based on your analysis, generate 3-5 distinct opening messages that are:
-    - Engaging and likely to get a response.
-    - Tailored to the person's profile.
-    - Reflective of a "{tone}" tone.
-    - Formatted as a question or a playful observation. Avoid generic compliments like "you're cute".
-
+    Analyze the provided screenshot, paying attention to text and visuals.
+    Based on your analysis, generate 3-5 distinct opening messages that are engaging, tailored, and reflect a "{tone}" tone.
     Provide your response ONLY as a valid JSON array of strings, like this:
-    ["Is that a golden retriever? My family's dog looks just like him!", "That hiking spot looks amazing! Was that taken around here?", "The bio says you're a coffee snob... what's the best cafe in town in your expert opinion?"]
+    ["Is that a golden retriever?", "That hiking spot looks amazing! Was that taken around here?"]
     """
     
     try:
         response = model.generate_content([prompt, *image_parts])
-        # The response should be a clean JSON array string
         openers_json = json.loads(response.text.strip())
         return jsonify({"openers": openers_json})
     except (GoogleAPICallError, json.JSONDecodeError, Exception) as e:
         print(f"Error during opener generation: {e}")
-        return jsonify({"error": "Failed to generate openers with AI. The profile might be hard to read."}), 500
+        return jsonify({"error": "Failed to generate openers with AI."}), 500
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    """
-    Handles the dating coach chat, saving history to Firestore.
-    """
     if not request.json or 'history' not in request.json:
         return jsonify({"error": "Missing chat history"}), 400
 
-    user_id = "user_12345"  # In a real app, this would come from an authentication system
+    user_id = "user_12345"
     history = request.json['history']
     
-    system_instruction = {"role": "user", "parts": [{"text": "You are Cupid's Code, a friendly, wise, and encouraging AI dating coach. Provide helpful, safe, and positive advice. Keep responses supportive and concise."}]}
-    
+    system_instruction = {"role": "user", "parts": [{"text": "You are Cupid's Code, a friendly, wise, and encouraging AI dating coach."}]}
     last_user_message = history[-1]['parts'][0]['text']
 
     try:
@@ -101,4 +98,4 @@ def chat():
 
 # --- Main Execution ---
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8080, debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
